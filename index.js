@@ -6,63 +6,65 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const GROQ_API_KEY = process.env.GROQ_API_KEY || "";
 
-// CORS (safe)
+// CORS + OPTIONS (important for browsers/webviews)
 app.use(cors());
 app.options("*", cors());
 
-// SUPER TOLERANT BODY: accept anything as text, never auto-400 on JSON parse
+// SUPER TOLERANT BODY PARSING:
+// We intentionally DO NOT use express.json() because it can throw 400 on bad JSON.
+// We accept everything as TEXT and then parse ourselves.
 app.use(express.text({ type: "*/*" }));
 
 const groq = GROQ_API_KEY ? new Groq({ apiKey: GROQ_API_KEY }) : null;
 
-// Health check
 app.get("/", (req, res) => {
-  res.status(200).send("Aamo brain is running 🦊 (Render tolerant AI mode)");
+  res.status(200).send("Aamo brain is running 🦊 (Render tolerant JSON mode)");
 });
 
-// IMPORTANT: a simple GET endpoint to test in browser
+// Helpful browser test
 app.get("/aamo-chat", (req, res) => {
-  res.status(200).send("Aamo chat endpoint is alive 🦊 (use POST to chat)");
+  res.status(200).json({ reply: "Aamo chat endpoint is alive 🦊 (POST to chat)" });
 });
 
 app.post("/aamo-chat", async (req, res) => {
-  // Always reply something, never 400
+  // Never allow a 400 response from this endpoint.
   try {
     const raw = (req.body ?? "").toString();
 
     let sessionId = "unknown";
-    let messageText = raw;
+    let messageText = "";
 
-    // Try to parse Construct Dictionary JSON or normal JSON
+    // Try parse JSON (works for both your manual JSON and Construct dictionary JSON)
     try {
       const parsed = JSON.parse(raw);
 
-      // Construct Dictionary.AsJSON format
+      // Construct Dictionary.AsJSON format:
+      // {"c2dictionary":true,"data":{"sessionId":"...","message":"..."}}
       if (parsed?.c2dictionary && parsed?.data) {
         sessionId = parsed.data.sessionId || sessionId;
-        messageText = parsed.data.message || messageText;
+        messageText = parsed.data.message || "";
       }
-      // Simple JSON format
-      else if (parsed?.message || parsed?.sessionId) {
+      // Normal JSON format:
+      // {"sessionId":"...","message":"..."}
+      else {
         sessionId = parsed.sessionId || sessionId;
-        messageText = parsed.message || messageText;
+        messageText = parsed.message || "";
       }
     } catch {
-      // Not JSON = fine (plain text)
+      // Not JSON? Treat raw body as the message
+      messageText = raw;
     }
 
     messageText = (messageText || "").toString().trim();
     if (!messageText) messageText = "…";
 
-    // If key missing, still reply 200
+    // If Groq key missing, still return valid JSON
     if (!groq) {
-      return res
-        .status(200)
-        .type("text/plain")
-        .send(`I can hear you, ystävä — but my cloud brain is offline right now. 💛`);
+      return res.status(200).json({
+        reply: "I can hear you, ystävä — but my cloud brain is offline right now. 💛",
+      });
     }
 
-    // AI reply
     const completion = await groq.chat.completions.create({
       model: "llama-3.1-8b-instant",
       temperature: 0.7,
@@ -75,27 +77,26 @@ app.post("/aamo-chat", async (req, res) => {
             "Speak like a supportive friend. No narration or action descriptions. " +
             "Replies are short: 1–2 sentences. " +
             "Use Finnish words sparingly (like 'ystävä', 'kiitos') and NEVER full Finnish sentences. " +
-            "Respond directly to what the user said (no generic mismatched replies).",
+            "Respond directly to what the user said.",
         },
         { role: "user", content: messageText },
       ],
     });
 
-    const aiReply =
+    const reply =
       completion.choices?.[0]?.message?.content?.trim() ||
       "I heard you, ystävä. Say that again for me?";
 
-    return res.status(200).type("text/plain").send(aiReply);
+    return res.status(200).json({ reply });
   } catch (err) {
-    // Even on failure: never 400, always 200
     console.error("Aamo error:", err);
-    return res
-      .status(200)
-      .type("text/plain")
-      .send("I’m here, ystävä. Something glitched, but you can try again. 💛");
+    // Even on error, still return 200 with JSON
+    return res.status(200).json({
+      reply: "I’m here, ystävä. Something glitched — try again. 💛",
+    });
   }
 });
 
 app.listen(PORT, () => {
-  console.log(`Aamo brain listening on port ${PORT} (AI chat mode, c2dictionary-aware)`);
+  console.log(`Aamo brain listening on port ${PORT} (tolerant JSON mode)`);
 });
