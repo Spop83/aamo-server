@@ -58,7 +58,7 @@ async function getAamoReply(messageText) {
     const completion = await groq.chat.completions.create({
       model: "llama-3.1-8b-instant",
       temperature: 0.4,
-      max_tokens: 160,
+      max_tokens: 120,
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: messageText }
