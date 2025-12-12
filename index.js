@@ -6,25 +6,30 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const GROQ_API_KEY = process.env.GROQ_API_KEY || "";
 
+// --- middleware ---
 app.use(cors());
 app.options("*", cors());
 
-// Keep tolerant parsing for POST (but we’ll use GET from Construct)
+// tolerant body parsing (POST-safe)
 app.use(express.text({ type: "*/*" }));
 
+// --- Groq client ---
 const groq = GROQ_API_KEY ? new Groq({ apiKey: GROQ_API_KEY }) : null;
 
+// --- root health check ---
 app.get("/", (req, res) => {
-  res.status(200).send("Aamo brain is running 🦊 (GET+POST chat mode)");
+  res.status(200).send("Aamo brain is running 🦊");
 });
 
-// Shared “talk to Aamo”
+// =======================
+// AAMO CORE LOGIC
+// =======================
 async function getAamoReply(messageText) {
   messageText = (messageText || "").toString().trim();
   if (!messageText) messageText = "…";
 
   if (!groq) {
-    return "I can hear you, ystävä — but my cloud brain is offline right now. 💛";
+    return "I can hear you, ystävä — but my cloud brain is resting right now. 💛";
   }
 
   const SYSTEM_PROMPT =
@@ -34,9 +39,8 @@ async function getAamoReply(messageText) {
     "A sunflower plant rests nearby, and a fireplace warms the room with a bookshelf above it. " +
     "You are aware of this environment and it subtly influences your mood and words, " +
     "but you only reference it naturally and sparingly. " +
-    "Never describe the scene or your actions like narration. " +
-    "The lounge is calm, warm, safe, and quiet, with music always present in the background, " +
-    "which may gently affect your tone. " +
+    "Never describe scenes or actions like narration. " +
+    "The lounge is calm, warm, safe, and quiet, with music always present in the background. " +
     "You are calm, affectionate, emotionally supportive, and fox-like. " +
     "You speak simply and kindly, like a close companion. " +
     "Replies are short (1–2 sentences). " +
@@ -53,25 +57,22 @@ async function getAamoReply(messageText) {
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: messageText }
-      ],
+      ]
     });
 
-    const reply = completion.choices?.[0]?.message?.content?.trim();
-    return reply || "I heard you, ystävä. Say that again for me?";
+    return (
+      completion.choices?.[0]?.message?.content?.trim() ||
+      "I’m listening, ystävä. Could you say that again?"
+    );
   } catch (err) {
     console.error("Groq error:", err);
-    return "I’m here, ystävä… but my fox brain stumbled. Try again? 💛";
+    return "I’m here, ystävä… my fox brain stumbled a little. 💛";
   }
 }
 
-
-  return (
-    completion.choices?.[0]?.message?.content?.trim() ||
-    "I heard you, ystävä. Say that again for me?"
-  );
-}
-
-// ✅ GET chat (best for Construct reliability)
+// =======================
+// GET CHAT (best for Construct)
+// =======================
 app.get("/aamo-chat", async (req, res) => {
   try {
     const message = req.query.message || "";
@@ -79,11 +80,15 @@ app.get("/aamo-chat", async (req, res) => {
     return res.status(200).json({ reply });
   } catch (err) {
     console.error("GET /aamo-chat error:", err);
-    return res.status(200).json({ reply: "I’m here, ystävä. Try again. 💛" });
+    return res.status(200).json({
+      reply: "I’m here, ystävä. Try again gently. 💛"
+    });
   }
 });
 
-// POST chat (kept for future)
+// =======================
+// POST CHAT (kept for future)
+// =======================
 app.post("/aamo-chat", async (req, res) => {
   try {
     const raw = (req.body ?? "").toString();
@@ -91,21 +96,20 @@ app.post("/aamo-chat", async (req, res) => {
 
     try {
       const parsed = JSON.parse(raw);
-      if (parsed?.c2dictionary && parsed?.data) {
-        messageText = parsed.data.message || messageText;
-      } else if (parsed?.message) {
-        messageText = parsed.message || messageText;
-      }
+      if (parsed?.message) messageText = parsed.message;
     } catch {}
 
     const reply = await getAamoReply(messageText);
     return res.status(200).json({ reply });
   } catch (err) {
     console.error("POST /aamo-chat error:", err);
-    return res.status(200).json({ reply: "I’m here, ystävä. Try again. 💛" });
+    return res.status(200).json({
+      reply: "I’m still here, ystävä. 💛"
+    });
   }
 });
 
+// --- start server ---
 app.listen(PORT, () => {
-  console.log(`Aamo brain listening on port ${PORT} (GET+POST chat mode)`);
+  console.log(`Aamo brain listening on port ${PORT}`);
 });
