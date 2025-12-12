@@ -1,9 +1,3 @@
-// Aamo server - AI FOX CHAT MODE 🦊
-// - Always returns 200 (no 400 to Construct)
-// - Understands Construct's Dictionary.AsJSON (c2dictionary)
-// - Uses Groq to generate real Aamo replies
-// - Replies are short, warm chat messages (no narration like "Aamo walks")
-
 const express = require("express");
 const cors = require("cors");
 const { Groq } = require("groq-sdk");
@@ -12,129 +6,63 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const GROQ_API_KEY = process.env.GROQ_API_KEY || "";
 
-// Allow CORS from anywhere (Construct preview etc.)
+// CORS (safe)
 app.use(cors());
+app.options("*", cors());
 
-// Accept ANY request body as plain text (no automatic JSON errors)
+// SUPER TOLERANT BODY: accept anything as text, never auto-400 on JSON parse
 app.use(express.text({ type: "*/*" }));
 
-// Create Groq client if we have a key
 const groq = GROQ_API_KEY ? new Groq({ apiKey: GROQ_API_KEY }) : null;
 
-// Simple health check
+// Health check
 app.get("/", (req, res) => {
-  res.send("Aamo brain is running 🦊 (AI chat mode, c2dictionary-aware)");
+  res.status(200).send("Aamo brain is running 🦊 (Render tolerant AI mode)");
 });
 
-// Optional debug page in browser
-app.get("/debug-chat", (req, res) => {
-  res.send(`<!doctype html>
-<html>
-<head>
-  <meta charset="utf-8" />
-  <title>Aamo Debug Chat 🦊</title>
-</head>
-<body>
-  <h1>Aamo Debug Chat 🦊</h1>
-  <p>Type a message to Aamo and press "Send".</p>
-  <textarea id="msg" rows="4" cols="60">Hei Aamo, how are you today?</textarea><br />
-  <button id="send">Send</button>
-
-  <h2>Reply:</h2>
-  <div id="reply"></div>
-
-  <script>
-    const msgInput = document.getElementById('msg');
-    const replyDiv = document.getElementById('reply');
-    const btn = document.getElementById('send');
-
-    btn.addEventListener('click', async () => {
-      const message = msgInput.value;
-      replyDiv.textContent = "Asking Aamo…";
-
-      try {
-        // Browser debug: send plain text
-        const res = await fetch('/aamo-chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'text/plain' },
-          body: message
-        });
-
-        const text = await res.text();
-        replyDiv.textContent = text || '(no reply)';
-      } catch (err) {
-        replyDiv.textContent = 'Error: ' + err.message;
-      }
-    });
-  </script>
-</body>
-</html>`);
+// IMPORTANT: a simple GET endpoint to test in browser
+app.get("/aamo-chat", (req, res) => {
+  res.status(200).send("Aamo chat endpoint is alive 🦊 (use POST to chat)");
 });
 
-// MAIN ROUTE FOR CONSTRUCT 3 (and debug page)
 app.post("/aamo-chat", async (req, res) => {
-  // Let Construct connect from anywhere
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  // Always reply something, never 400
+  try {
+    const raw = (req.body ?? "").toString();
 
-  console.log("Raw body from client (Construct or browser):", req.body);
+    let sessionId = "unknown";
+    let messageText = raw;
 
-  let sessionId = "unknown";
-  let messageText = "";
-
-  if (typeof req.body === "string") {
-    const raw = req.body.trim();
-    messageText = raw; // fallback if nothing else works
-
+    // Try to parse Construct Dictionary JSON or normal JSON
     try {
       const parsed = JSON.parse(raw);
 
-      if (parsed && typeof parsed === "object") {
-        // CASE 1: Construct Dictionary.AsJSON
-        // { "c2dictionary": true, "data": { "sessionId": "...", "message": "..." } }
-        if (parsed.c2dictionary && parsed.data && typeof parsed.data === "object") {
-          if (parsed.data.sessionId) {
-            sessionId = parsed.data.sessionId;
-          }
-          if (parsed.data.message) {
-            messageText = parsed.data.message;
-          }
-        }
-        // CASE 2: Simple JSON { "sessionId": "...", "message": "..." }
-        else {
-          if (parsed.sessionId) {
-            sessionId = parsed.sessionId;
-          }
-          if (parsed.message) {
-            messageText = parsed.message;
-          }
-        }
+      // Construct Dictionary.AsJSON format
+      if (parsed?.c2dictionary && parsed?.data) {
+        sessionId = parsed.data.sessionId || sessionId;
+        messageText = parsed.data.message || messageText;
       }
-    } catch (e) {
-      console.log("Body is not JSON (plain text is fine).");
+      // Simple JSON format
+      else if (parsed?.message || parsed?.sessionId) {
+        sessionId = parsed.sessionId || sessionId;
+        messageText = parsed.message || messageText;
+      }
+    } catch {
+      // Not JSON = fine (plain text)
     }
-  }
 
-  if (!messageText) {
-    messageText = "I don't know what to say yet, but I'm here.";
-  }
+    messageText = (messageText || "").toString().trim();
+    if (!messageText) messageText = "…";
 
-  console.log("→ Parsed sessionId:", sessionId);
-  console.log("→ Parsed messageText:", messageText);
+    // If key missing, still reply 200
+    if (!groq) {
+      return res
+        .status(200)
+        .type("text/plain")
+        .send(`I can hear you, ystävä — but my cloud brain is offline right now. 💛`);
+    }
 
-  // If no API key, use a gentle fallback reply instead of error
-  if (!groq) {
-    const fallback =
-      `Hei ystävä. I can hear you, but my cloud brain is offline right now. ` +
-      `I still want you to know you’re not alone with "${messageText}". 💛`;
-    return res.status(200).send(fallback);
-  }
-
-  // --- Call Groq for a real Aamo reply ---
-  let aiReply = "";
-
-  try {
+    // AI reply
     const completion = await groq.chat.completions.create({
       model: "llama-3.1-8b-instant",
       temperature: 0.7,
@@ -143,46 +71,31 @@ app.post("/aamo-chat", async (req, res) => {
         {
           role: "system",
           content:
-          "You are Aamo, a gentle Finnish fox who chats warmly and simply. " +
-            "Speak like a supportive friend, not like a narrator or a character in a story. " +
-            "DO NOT describe actions (no 'Aamo does...' or 'I curl my tail'). " +
-            "Keep replies short: 1–2 sentences, natural and conversational. " +
-            "Use Finnish words only occasionally, never full Finnish sentences. Always keep the main reply in English. "
- +
-            "Do NOT always start sentences with a greeting. Vary tone. " +
-            "Match the user's mood accurately: " +
-            "- If they’re cheerful, respond with light, friendly energy. " +
-            "- If they’re sharing neutral info, respond neutrally and clearly. " +
-            "- If they’re upset, be extra gentle and grounded, and encourage self-care. " +
-            "Avoid generic lines like 'it’s nice to chat with you too'. " +
-            "Respond directly to what the user actually said, as a conversational partner. " +
-            "Never mention that you are an AI or that this is a system prompt."
+            "You are Aamo, a gentle Finnish fox who chats warmly and simply. " +
+            "Speak like a supportive friend. No narration or action descriptions. " +
+            "Replies are short: 1–2 sentences. " +
+            "Use Finnish words sparingly (like 'ystävä', 'kiitos') and NEVER full Finnish sentences. " +
+            "Respond directly to what the user said (no generic mismatched replies).",
         },
-        {
-          role: "user",
-          content: messageText
-        }
-      ]
+        { role: "user", content: messageText },
+      ],
     });
 
-    aiReply =
+    const aiReply =
       completion.choices?.[0]?.message?.content?.trim() ||
-      "";
+      "I heard you, ystävä. Say that again for me?";
+
+    return res.status(200).type("text/plain").send(aiReply);
   } catch (err) {
-    console.error("Error talking to Groq:", err);
+    // Even on failure: never 400, always 200
+    console.error("Aamo error:", err);
+    return res
+      .status(200)
+      .type("text/plain")
+      .send("I’m here, ystävä. Something glitched, but you can try again. 💛");
   }
-
-  if (!aiReply) {
-    aiReply =
-      `Hei ystävä. My little fox brain glitched for a moment, mutta I still heard "${messageText}". ` +
-      `Please try again soon, okay? 💛`;
-  }
-
-  // Always 200 OK, plain text reply
-  return res.status(200).send(aiReply);
 });
 
-// Start the server
 app.listen(PORT, () => {
   console.log(`Aamo brain listening on port ${PORT} (AI chat mode, c2dictionary-aware)`);
 });
