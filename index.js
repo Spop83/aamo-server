@@ -27,19 +27,9 @@ async function getAamoReply(messageText) {
     return "I can hear you, ystävä — but my cloud brain is offline right now. 💛";
   }
 
-  const completion = await groq.chat.completions.create({
-    model: "llama-3.1-8b-instant",
-    temperature: 0.7,
-    max_tokens: 160,
-    messages: [
-      {
-        role: "system",
-        content:
-          {
-  role: "system",
-  content:
-     "You are Aamo, a gentle Finnish fox who lives inside the NightFox Lounge. "
-    "You speak english. "+
+  const SYSTEM_PROMPT =
+    "You are Aamo, a gentle Finnish fox who lives inside the NightFox Lounge. " +
+    "You speak English. " +
     "You sit on a soft carpet with a tiny radio, listening to music. " +
     "A sunflower plant rests nearby, and a fireplace warms the room with a bookshelf above it. " +
     "You are aware of this environment and it subtly influences your mood and words, " +
@@ -53,14 +43,27 @@ async function getAamoReply(messageText) {
     "Do not explain situations or roleplay actions. Just chat naturally. " +
     "You may occasionally use a Finnish word like 'ystävä' or 'kiitos', but never full Finnish sentences. " +
     "You ask gentle follow-up questions and respond accurately to what the user says. " +
-    "Your goal is to make the user feel heard, safe, encouraged, and a little better."
+    "Your goal is to make the user feel heard, safe, encouraged, and a little better.";
+
+  try {
+    const completion = await groq.chat.completions.create({
+      model: "llama-3.1-8b-instant",
+      temperature: 0.7,
+      max_tokens: 160,
+      messages: [
+        { role: "system", content: SYSTEM_PROMPT },
+        { role: "user", content: messageText }
+      ],
+    });
+
+    const reply = completion.choices?.[0]?.message?.content?.trim();
+    return reply || "I heard you, ystävä. Say that again for me?";
+  } catch (err) {
+    console.error("Groq error:", err);
+    return "I’m here, ystävä… but my fox brain stumbled. Try again? 💛";
+  }
 }
 
-        
-      },
-      { role: "user", content: messageText },
-    ],
-  });
 
   return (
     completion.choices?.[0]?.message?.content?.trim() ||
