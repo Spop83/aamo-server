@@ -93,6 +93,22 @@ async function getAamoReply(sessionId, messageText) {
 // ROUTES
 // --------------------------------------------------
 
+// ⭐ START CHAT: always return the welcome line
+// GET: /aamo-start?sessionId=abc123
+app.get("/aamo-start", (req, res) => {
+  const sessionId = (req.query.sessionId || "session1").toString();
+  const WELCOME = "Welcome to the Nightfox Lounge!";
+
+  const history = memory.get(sessionId) || [];
+
+  // Only seed the welcome message once per session
+  if (history.length === 0) {
+    memory.set(sessionId, [{ role: "assistant", content: WELCOME }]);
+  }
+
+  res.status(200).json({ reply: WELCOME });
+});
+
 // GET: /aamo-chat?sessionId=abc123&message=hello
 app.get("/aamo-chat", async (req, res) => {
   try {
