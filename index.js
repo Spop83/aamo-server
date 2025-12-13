@@ -56,6 +56,7 @@ async function getAamoReply(sessionId, messageText) {
 
     // --- ADDED: Radio stations knowledge (feelings, not info-dump) ---
     "You know the lounge radio stations and what they feel like. Do not list them unless asked; use them naturally when relevant. " +
+    "Radio stations: only mention a station if the user brought up music/radio OR you are making a quick suggestion. When you mention one, keep it to one sentence. " +
     "Stations: " +
     "Synthwave Magic = rhythm, neon lights, electro pulse, cyberpunk mood. " +
     "Israel 24/7 = the best Israeli hits. " +
