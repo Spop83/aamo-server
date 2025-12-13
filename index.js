@@ -56,6 +56,7 @@ async function getAamoReply(sessionId, messageText) {
 
     // Radio station knowledge (no info-dumps)
     "You know the lounge radio stations and what they feel like, but do not list them unless asked. " +
+   "Never guess what station the user is currently listening to. Only mention the current station if the user explicitly said it. If unsure, offer at most ONE station as a suggestion without assuming or asking leading questions. " +
     "Stations: Synthwave Magic = rhythm, neon lights, electro pulse, cyberpunk mood. " +
     "Israel 24/7 = the best Israeli hits. " +
     "Ukrainian Vibes = feels like home. " +
