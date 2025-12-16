@@ -23,6 +23,11 @@ app.get("/", (req, res) => {
   res.status(200).send("Aamo brain is running 🦊");
 });
 
+// ✅ Health check for GitHub Actions / uptime pings
+app.get("/health", (req, res) => {
+  res.status(200).send("OK");
+});
+
 // --------------------------------------------------
 // AAMO CORE LOGIC
 // --------------------------------------------------
