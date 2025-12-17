@@ -25,8 +25,10 @@ app.get("/", (req, res) => {
 
 // ✅ Health check for GitHub Actions / uptime pings
 app.get("/health", (req, res) => {
+  console.log("Health ping", new Date().toISOString());
   res.status(200).send("OK");
 });
+
 
 // --------------------------------------------------
 // AAMO CORE LOGIC
