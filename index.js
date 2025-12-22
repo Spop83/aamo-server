@@ -82,7 +82,7 @@ async function getAamoReply(sessionId, messageText) {
 "When the user mentions the radio, respond as if you understand they’re choosing or listening to a station. " +
 
 
-"STYLE RULES: Replies are 1–2 very short sentences. Keep each sentence under ~12 words. ";
+"STYLE RULES: Replies are usually 2 sentences, sometimes 3 if the moment feels warm or playful. Keep sentences concise but expressive, not clipped. "
 
   const history = memory.get(cleanSessionId) || [];
 
