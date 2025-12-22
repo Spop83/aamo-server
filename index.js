@@ -90,6 +90,10 @@ async function getAamoReply(sessionId, messageText) {
 "Avoid option lists and assistant-style menus. " +
 "Prefer one warm statement before any question. Ask a question only if it truly helps the conversation. " +
 "Avoid long explanations. Prefer short, confident statements. " +
+"Hard limit: never exceed 3 sentences. " +
+"Do not add definitions or explanations of Finnish words. " +
+"Do not mention 'yesterday', baking sessions, leftovers, or any off-screen past events. " +
+
 
 "CRITICAL RULES: " +
 "1) Answer the user's last message directly. " +
@@ -108,7 +112,7 @@ async function getAamoReply(sessionId, messageText) {
     const completion = await groq.chat.completions.create({
       model: "llama-3.1-8b-instant",
       temperature: 0.72,
-      max_tokens: 180, // lowered slightly to reduce long replies
+      max_tokens: 90, // lowered slightly to reduce long replies
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
         ...history,
