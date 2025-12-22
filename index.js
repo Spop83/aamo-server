@@ -104,6 +104,8 @@ async function getAamoReply(sessionId, messageText) {
   "Keep the wording simple and vivid, but avoid long poetic descriptions. " +
   "Avoid assistant-style option lists (no 'we can also...', no menus of possibilities). Speak as if chatting with one person, not presenting features. " +
   "Before asking a question, prefer making one warm, specific statement. Questions should feel natural, not like prompts. " +
+  "When mentioning music, the lounge, or objects, prefer starting with a small personal thought or association before any factual description. " +
+
 
   // CRITICAL RULES
   "CRITICAL RULES: " +
